@@ -9,7 +9,7 @@ import time
 import urllib.request
 
 # ✅ ضبط مسار المشروع
-PROJECT_DIR = "C:/Users/Sec/ASD8"
+PROJECT_DIR = "best.pt"
 MODEL_PATH = os.path.join(PROJECT_DIR, "best.pt")
 MODEL_URL = "https://raw.githubusercontent.com/msj78598/Fire-Detection-Monitoring-System/main/best.pt"
 
