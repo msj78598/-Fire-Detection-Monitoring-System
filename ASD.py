@@ -9,7 +9,7 @@ import pandas as pd
 import time
 
 # ✅ تثبيت المتطلبات تلقائيًا عند الحاجة (خيار إضافي)
-os.system("pip install --upgrade torch==2.0.1 torchvision==0.15.2 ultralytics==8.0.30 opencv-python-headless pandas Pillow streamlit")
+os.system("pip install --upgrade ultralytics opencv-python-headless")
 
 # ✅ التأكد من تحميل `best.pt` وعدم تلفه
 MODEL_PATH = "best.pt"
@@ -21,15 +21,17 @@ if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 10000:
     print("✅ تم تحميل best.pt بنجاح!")
 
 # ✅ تحميل YOLOv5 باستخدام `torch.hub.load()`
-if "model" not in st.session_state:
+try:
     st.session_state.model = torch.hub.load(
         "ultralytics/yolov5",
         "custom",
         path=MODEL_PATH,
         source="github",
-        trust_repo=True
+        force_reload=True
     )
     print("✅ تم تحميل YOLOv5 بنجاح!")
+except Exception as e:
+    print(f"❌ خطأ في تحميل YOLOv5: {e}")
 
 # ✅ تنسيق الصفحة
 st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
