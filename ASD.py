@@ -7,27 +7,20 @@ import numpy as np
 
 # ✅ تحميل نموذج YOLOv5
 MODEL_PATH = "best.pt"
-
-# ✅ تحميل النموذج
-try:
-    model = torch.hub.load('ultralytics/yolov5', 'custom', path=MODEL_PATH, source="github")
-    print("✅ تم تحميل YOLOv5 بنجاح!")
-except Exception as e:
-    print(f"❌ خطأ في تحميل YOLOv5: {e}")
+model = torch.hub.load('ultralytics/yolov5', 'custom', path=MODEL_PATH, source="github")
 
 # ✅ تنسيق الصفحة
 st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
 
-# ✅ واجهة التطبيق
 st.title("🔥 Fire Detection Monitoring System")
 st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
 
-# ✅ إضافة خيار لاختيار الإدخال
+# ✅ اختيار الإدخال: كاميرا أو رفع صورة/فيديو
 mode = st.sidebar.radio("📌 اختر طريقة الإدخال:", ["🎥 الكاميرا المباشرة", "📂 رفع صورة أو فيديو"])
 
 # ✅ 1️⃣ تشغيل الكاميرا عبر `Streamlit WebRTC`
 if mode == "🎥 الكاميرا المباشرة":
-    st.sidebar.warning("⚠️ ملاحظة: تأكد من السماح للمتصفح بالوصول إلى الكاميرا.")
+    st.sidebar.warning("⚠️ تأكد من السماح للمتصفح بالوصول إلى الكاميرا.")
 
     class FireDetectionTransformer(VideoTransformerBase):
         def transform(self, frame):
