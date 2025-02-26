@@ -1,52 +1,74 @@
+import os
 import streamlit as st
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import av
 import torch
 import cv2
 import numpy as np
+from PIL import Image
+import urllib.request
+import time
 
-# ✅ تحميل نموذج YOLOv5
+# ✅ تحميل النموذج من ملف محلي
 MODEL_PATH = "best.pt"
+MODEL_URL = "https://raw.githubusercontent.com/msj78598/Fire-Detection-Monitoring-System/main/best.pt"
 
-# ✅ تحميل النموذج
+# ✅ التحقق من وجود ملف النموذج وتحميله إن لم يكن موجودًا
+if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 10000:
+    st.warning("📥 يتم تحميل النموذج... يرجى الانتظار!")
+    urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+    st.success("✅ تم تحميل النموذج بنجاح!")
+
+# ✅ تحميل YOLOv5 باستخدام Ultralytics مباشرة
 try:
-    model = torch.hub.load('ultralytics/yolov5', 'custom', path=MODEL_PATH, source="github")
-    print("✅ تم تحميل YOLOv5 بنجاح!")
+    from ultralytics import YOLO
+    st.session_state.model = YOLO(MODEL_PATH)
+    st.success("✅ تم تحميل نموذج YOLOv5 بنجاح!")
 except Exception as e:
-    print(f"❌ خطأ في تحميل YOLOv5: {e}")
+    st.error(f"❌ خطأ في تحميل YOLOv5: {e}")
 
-# ✅ تنسيق الصفحة
+# ✅ إعداد صفحة التطبيق
 st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
-
-# ✅ واجهة التطبيق
 st.title("🔥 Fire Detection Monitoring System")
 st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
 
-# ✅ إضافة خيار لاختيار الإدخال
+# ✅ اختيار طريقة الإدخال
 mode = st.sidebar.radio("📌 اختر طريقة الإدخال:", ["🎥 الكاميرا المباشرة", "📂 رفع صورة أو فيديو"])
 
-# ✅ 1️⃣ تشغيل الكاميرا عبر `Streamlit WebRTC`
+# 🔥 **1️⃣ تشغيل الكاميرا المباشرة عبر Streamlit WebRTC**
 if mode == "🎥 الكاميرا المباشرة":
-    st.sidebar.warning("⚠️ ملاحظة: تأكد من السماح للمتصفح بالوصول إلى الكاميرا.")
+    st.sidebar.warning("⚠️ تأكد من السماح للمتصفح بالوصول إلى الكاميرا!")
 
     class FireDetectionTransformer(VideoTransformerBase):
         def transform(self, frame):
             img = frame.to_ndarray(format="bgr24")
 
-            # 🔹 تشغيل YOLOv5 على الإطار الحالي
-            results = model(img)
+            # 🔹 تشغيل النموذج على الصورة
+            results = st.session_state.model(img)
 
-            # 🔹 رسم المربعات على الصورة
-            for *xyxy, conf, cls in results.xyxy[0]:
-                x1, y1, x2, y2 = map(int, xyxy)
-                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                cv2.putText(img, "🔥 Fire Detected", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            # 🔹 رسم المربعات على الصورة عند اكتشاف الحريق
+            fire_detected = False
+            for result in results:
+                boxes = result.boxes
+                for box in boxes:
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    conf = float(box.conf[0])  # تحويل الثقة إلى قيمة عددية
+                    if conf > 0.1:  # عتبة الكشف عند 0.1
+                        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        cv2.putText(img, f"🔥 Fire ({conf:.2f})", (x1, y1 - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                        fire_detected = True
+
+            # 🔴 تشغيل الإنذار عند اكتشاف الحريق
+            if fire_detected:
+                st.warning("🚨🔥 إنذار! تم اكتشاف حريق!")
+                st.audio("mixkit-urgent-simple-tone-loop-2976.wav", format="audio/wav")
 
             return av.VideoFrame.from_ndarray(img, format="bgr24")
 
     webrtc_streamer(key="fire-detection", video_transformer_factory=FireDetectionTransformer)
 
-# ✅ 2️⃣ رفع صورة أو فيديو وتحليلها
+# 📂 **2️⃣ تحليل صورة أو فيديو مرفوع**
 elif mode == "📂 رفع صورة أو فيديو":
     uploaded_file = st.sidebar.file_uploader("📸 قم برفع صورة أو فيديو", type=["jpg", "png", "jpeg", "mp4"])
 
@@ -59,16 +81,25 @@ elif mode == "📂 رفع صورة أو فيديو":
             image_np = np.array(image)
 
             # 🔹 تشغيل YOLOv5 على الصورة
-            results = model(image_np)
+            results = st.session_state.model(image_np)
 
-            # 🔹 رسم المربعات على الصورة
-            for *xyxy, conf, cls in results.xyxy[0]:
-                x1, y1, x2, y2 = map(int, xyxy)
-                cv2.rectangle(image_np, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            # 🔹 رسم المربعات على الصورة عند اكتشاف الحريق
+            fire_detected = False
+            for result in results:
+                boxes = result.boxes
+                for box in boxes:
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    conf = float(box.conf[0])
+                    if conf > 0.1:
+                        cv2.rectangle(image_np, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        fire_detected = True
 
-            # ✅ عرض الصورة مع النتائج
+            # ✅ عرض النتائج
             st.image(image_np, caption="🔍 نتيجة تحليل الصورة", use_column_width=True)
-            st.success("✅ تم تحليل الصورة بنجاح!")
+
+            if fire_detected:
+                st.warning("🚨🔥 تم اكتشاف حريق في الصورة!")
+                st.audio("mixkit-urgent-simple-tone-loop-2976.wav", format="audio/wav")
 
         elif file_type == "video":
             # ✅ تشغيل الفيديو وتحليله إطار بإطار
@@ -85,16 +116,27 @@ elif mode == "📂 رفع صورة أو فيديو":
                     break
 
                 # 🔹 تشغيل YOLOv5 على الإطار الحالي
-                results = model(frame)
+                results = st.session_state.model(frame)
 
-                # 🔹 رسم المربعات على الصورة
-                for *xyxy, conf, cls in results.xyxy[0]:
-                    x1, y1, x2, y2 = map(int, xyxy)
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                # 🔹 رسم المربعات على الصورة عند اكتشاف الحريق
+                fire_detected = False
+                for result in results:
+                    boxes = result.boxes
+                    for box in boxes:
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        conf = float(box.conf[0])
+                        if conf > 0.1:
+                            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                            fire_detected = True
 
                 # ✅ عرض الفيديو بعد التحليل
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 stframe.image(frame_rgb, caption="🔍 تحليل الفيديو", use_column_width=True)
 
             cap.release()
-            st.success("✅ تم تحليل الفيديو بنجاح!")
+
+            if fire_detected:
+                st.warning("🚨🔥 تم اكتشاف حريق في الفيديو!")
+                st.audio("mixkit-urgent-simple-tone-loop-2976.wav", format="audio/wav")
+
+st.success("✅ التطبيق جاهز للتشغيل!")
