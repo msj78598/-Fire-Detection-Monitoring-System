@@ -7,28 +7,30 @@ import cv2
 import numpy as np
 from PIL import Image
 import urllib.request
+import pathlib
 import time
 
-# ✅ تحميل النموذج من ملف محلي
+# ✅ يجب أن يكون `st.set_page_config()` هو أول سطر بعد الاستيراد
+st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
+
+# ✅ تحميل النموذج بطريقة متوافقة مع Linux (Streamlit Cloud)
 MODEL_PATH = "best.pt"
 MODEL_URL = "https://raw.githubusercontent.com/msj78598/Fire-Detection-Monitoring-System/main/best.pt"
 
-# ✅ التحقق من وجود ملف النموذج وتحميله إن لم يكن موجودًا
 if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 10000:
     st.warning("📥 يتم تحميل النموذج... يرجى الانتظار!")
     urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
     st.success("✅ تم تحميل النموذج بنجاح!")
 
-# ✅ تحميل YOLOv5 باستخدام Ultralytics مباشرة
 try:
     from ultralytics import YOLO
-    st.session_state.model = YOLO(MODEL_PATH)
+    MODEL_PATH = pathlib.Path(MODEL_PATH)  # تأكد من استخدام PosixPath
+    st.session_state.model = YOLO(str(MODEL_PATH))  # تحويله إلى `str` لتجنب خطأ WindowsPath
     st.success("✅ تم تحميل نموذج YOLOv5 بنجاح!")
 except Exception as e:
     st.error(f"❌ خطأ في تحميل YOLOv5: {e}")
 
 # ✅ إعداد صفحة التطبيق
-st.set_page_config(page_title="Fire Detection Monitoring", page_icon="🔥", layout="wide")
 st.title("🔥 Fire Detection Monitoring System")
 st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
 
