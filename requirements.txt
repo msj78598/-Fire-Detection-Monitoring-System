@@ -4,3 +4,4 @@ opencv-python-headless
 pandas
 Pillow
 ultralytics
+opencv-python-headless==4.9.0.80
