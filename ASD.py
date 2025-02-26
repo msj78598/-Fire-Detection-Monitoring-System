@@ -45,36 +45,6 @@ st.sidebar.subheader("📊 إصدار تقرير")
 start_date = st.sidebar.date_input("📅 تاريخ البداية")
 end_date = st.sidebar.date_input("📅 تاريخ النهاية")
 
-if st.sidebar.button("📥 استخراج التقرير"):
-    if "fire_detections" in st.session_state and st.session_state.fire_detections:
-        filtered_detections = [
-            detection for detection in st.session_state.fire_detections
-            if start_date <= datetime.strptime(detection['time'], "%Y-%m-%d %H:%M:%S").date() <= end_date
-        ]
-
-        if filtered_detections:
-            df = pd.DataFrame(filtered_detections)
-            df['image_link'] = df['image'].apply(lambda x: f'=HYPERLINK("{x}", "عرض الصورة")')
-
-            excel_file = "fire_detections_report.xlsx"
-            df.to_excel(excel_file, index=False)
-
-            with open(excel_file, "rb") as file:
-                st.sidebar.download_button(
-                    label="📥 تحميل التقرير",
-                    data=file,
-                    file_name="fire_detections_report.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        else:
-            st.sidebar.error("❌ لا توجد اكتشافات في الفترة المحددة.")
-    else:
-        st.sidebar.error("❌ لا توجد اكتشافات لاستخراج التقرير.")
-
-# ✅ واجهة التطبيق
-st.title("🔥 Fire Detection Monitoring System")
-st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقبة لاكتشاف الحريق</h4>", unsafe_allow_html=True)
-
 # ✅ اختيار الإدخال
 mode = st.sidebar.radio("📌 اختر طريقة الإدخال:", ["🎥 الكاميرا المباشرة", "📂 رفع صورة أو فيديو"])
 
@@ -85,14 +55,14 @@ if mode == "🎥 الكاميرا المباشرة":
     class FireDetectionTransformer(VideoTransformerBase):
         def transform(self, frame):
             img = frame.to_ndarray(format="bgr24")
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # 🔹 تحويل الصورة إلى RGB
 
             # 🔹 تشغيل YOLOv5 على الإطار الحالي
-            results = model(img, conf=0.1)
+            results = model(img_rgb, size=640, conf=0.3)  # ✅ ضبط العتبة إلى 0.3
 
-            # 🔹 رسم المربعات على الصورة
             fire_detected = False
             for *xyxy, conf, cls in results.xyxy[0]:
-                if conf > 0.1:  # 🔥 عتبة الثقة 0.1
+                if conf > 0.3:  # 🔥 عتبة الثقة 0.3
                     fire_detected = True
                     x1, y1, x2, y2 = map(int, xyxy)
                     cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
@@ -118,11 +88,11 @@ elif mode == "📂 رفع صورة أو فيديو":
             image_np = np.array(image)
 
             # 🔹 تشغيل YOLOv5 على الصورة
-            results = model(image_np, conf=0.1)
+            results = model(image_np, size=640, conf=0.3)
 
             # 🔹 رسم المربعات على الصورة
             for *xyxy, conf, cls in results.xyxy[0]:
-                if conf > 0.1:
+                if conf > 0.3:
                     x1, y1, x2, y2 = map(int, xyxy)
                     cv2.rectangle(image_np, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
@@ -142,10 +112,10 @@ elif mode == "📂 رفع صورة أو فيديو":
                 if not ret:
                     break
 
-                results = model(frame, conf=0.1)
+                results = model(frame, size=640, conf=0.3)
 
                 for *xyxy, conf, cls in results.xyxy[0]:
-                    if conf > 0.1:
+                    if conf > 0.3:
                         x1, y1, x2, y2 = map(int, xyxy)
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
