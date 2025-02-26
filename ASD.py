@@ -56,7 +56,7 @@ st.markdown("<h4 style='text-align: center; color: #FF5733;'>نظام مراقب
 
 # تحميل نموذج YOLOv5 من المسار النسبي داخل المشروع
 if "model" not in st.session_state:
-    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='C:/Users/Sec/ASD8/best.pt')
+    st.session_state.model = torch.hub.load('ultralytics/yolov5', 'custom', path='best.pt')
 
 
 
