@@ -29,6 +29,7 @@ try:
     st.success("✅ تم تحميل نموذج YOLOv5 بنجاح!")
 except Exception as e:
     st.error(f"❌ خطأ في تحميل YOLOv5: {e}")
+    st.stop()  # إيقاف التنفيذ إذا فشل تحميل النموذج
 
 # ✅ إعداد صفحة التطبيق
 st.title("🔥 Fire Detection Monitoring System")
